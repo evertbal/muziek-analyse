@@ -1,0 +1,7 @@
+# Railway/Nixpacks build-configuratie.
+# ffmpeg is nodig voor de YouTube-import: yt-dlp gebruikt het om audio naar
+# mp3 te converteren (FFmpegExtractAudio) en librosa heeft het nodig om
+# .webm/.m4a-bestanden te decoderen. De standaard Python-autodetectie van
+# Nixpacks installeert ffmpeg niet, waardoor de download/analyse faalt.
+[phases.setup]
+aptPkgs = ["ffmpeg"]
