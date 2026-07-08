@@ -23,6 +23,24 @@
     </form>
 </div>
 
+<!-- Directe audio-link -->
+<div class="url-import">
+    <form method="POST" action="{{ url_for('import_url') }}" class="url-form">
+        <input type="url" name="audio_url" placeholder="Plak een link naar een audiobestand (mp3, wav, flac...)" required class="search-input">
+        <button type="submit" class="btn btn-primary">Importeer van link</button>
+    </form>
+    <p class="upload-hint">Het bestand wordt na de analyse automatisch verwijderd.</p>
+</div>
+
+<!-- Bestand uploaden -->
+<div class="upload-import">
+    <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="upload-form">
+        <input type="file" name="audio_file" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aiff,.aif" required class="search-input">
+        <button type="submit" class="btn btn-primary">Upload &amp; analyseer</button>
+    </form>
+    <p class="upload-hint">Het bestand wordt na de analyse automatisch verwijderd.</p>
+</div>
+
 <!-- Search / Filter -->
 <div class="search-bar">
     <form method="GET" action="{{ url_for('index') }}" class="search-form">
@@ -91,7 +109,7 @@
 {% else %}
 <div class="empty-state">
     <h2>Geen tracks gevonden</h2>
-    <p>Ga naar <a href="{{ url_for('browse') }}">Nieuwe Analyse</a> om audiobestanden te analyseren.</p>
+    <p>Importeer een nummer hierboven via een YouTube-link, een directe audio-link of door een bestand te uploaden.</p>
 </div>
 {% endif %}
 {% endblock %}

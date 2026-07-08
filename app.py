@@ -3,13 +3,16 @@
 
 import os
 import json
+import uuid
 from pathlib import Path
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from werkzeug.utils import secure_filename
 import io
 
-from config import DB_PATH, DEFAULT_AUDIO_DIR, AUDIO_EXTENSIONS, OUTPUT_DIR, SECRET_KEY, YOUTUBE_DOWNLOAD_DIR
+from config import (DB_PATH, AUDIO_EXTENSIONS, OUTPUT_DIR, SECRET_KEY,
+                    YOUTUBE_DOWNLOAD_DIR, UPLOAD_DIR, MAX_UPLOAD_SIZE)
 from models import init_db, create_track, get_track, list_tracks, search_tracks, delete_track, update_status, update_key
-from tasks import enqueue, enqueue_youtube, get_status
+from tasks import enqueue, enqueue_youtube, enqueue_url, get_status
 
 # Lazy imports to avoid slow numpy/librosa import at startup
 def parse_filename_metadata(filename):
@@ -18,6 +21,7 @@ def parse_filename_metadata(filename):
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE
 
 # Initialize database on startup
 init_db()
@@ -171,74 +175,89 @@ def youtube_import():
     return redirect(url_for('index'))
 
 
-@app.route('/analyse', methods=['POST'])
-def analyse():
-    """Start analysis for a single file path."""
-    file_path = request.form.get('file_path', '').strip()
-    if not file_path:
-        flash('Geen bestandspad opgegeven.', 'error')
-        return redirect(url_for('browse'))
+@app.route('/import-url', methods=['POST'])
+def import_url():
+    """Import a track from a direct link to an audio file."""
+    from download import validate_audio_url, _derive_name
 
-    if not os.path.isfile(file_path):
-        flash(f'Bestand niet gevonden: {file_path}', 'error')
-        return redirect(url_for('browse'))
+    url = request.form.get('audio_url', '').strip()
+    if not url:
+        flash('Geen URL opgegeven.', 'error')
+        return redirect(url_for('index'))
 
-    ext = Path(file_path).suffix.lower()
+    if not validate_audio_url(url):
+        flash('Ongeldige URL. Gebruik een directe http(s)-link naar een audiobestand.', 'error')
+        return redirect(url_for('index'))
+
+    name = _derive_name(url)
+    meta = parse_filename_metadata(name)
+    fn_key = None
+    if 'key' in meta:
+        fn_key = meta['key'] + ('m' if meta.get('mode') == 'minor' else '')
+
+    # Placeholder path (deduped on URL) until the download completes.
+    placeholder_path = f"url://{url}"
+    track_id = create_track(name, placeholder_path,
+                            filename_key=fn_key,
+                            filename_bpm=meta.get('bpm'),
+                            source='url')
+    if track_id is None:
+        flash(f'Track "{name}" bestaat al in de database.', 'warning')
+        return redirect(url_for('index'))
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    # Ad-hoc download: stored in UPLOAD_DIR and removed after analysis.
+    enqueue_url(track_id, url, UPLOAD_DIR, DB_PATH)
+    flash(f'Import gestart voor "{name}". Het bestand wordt na analyse verwijderd.', 'success')
+    return redirect(url_for('index'))
+
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    """Upload an audio file, analyse it, then delete the file afterwards."""
+    file = request.files.get('audio_file')
+    if not file or not file.filename:
+        flash('Geen bestand geselecteerd.', 'error')
+        return redirect(url_for('index'))
+
+    original_name = file.filename
+    ext = Path(original_name).suffix.lower()
     if ext not in AUDIO_EXTENSIONS:
-        flash(f'Niet-ondersteund formaat: {ext}', 'error')
-        return redirect(url_for('browse'))
+        flash(f'Niet-ondersteund formaat: {ext or "onbekend"}', 'error')
+        return redirect(url_for('index'))
 
-    name = Path(file_path).stem
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    # Unique on-disk name to avoid collisions; original name kept for display.
+    safe = secure_filename(original_name) or f'upload{ext}'
+    file_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_{safe}")
+    file.save(file_path)
     file_size = os.path.getsize(file_path)
 
-    # Parse filename metadata
-    meta = parse_filename_metadata(Path(file_path).name)
+    name = Path(original_name).stem
+    meta = parse_filename_metadata(original_name)
     fn_key = None
     if 'key' in meta:
         fn_key = meta['key'] + ('m' if meta.get('mode') == 'minor' else '')
 
     track_id = create_track(name, file_path, file_size,
                             filename_key=fn_key,
-                            filename_bpm=meta.get('bpm'))
+                            filename_bpm=meta.get('bpm'),
+                            source='upload')
     if track_id is None:
+        os.remove(file_path)
         flash(f'Track "{name}" bestaat al in de database.', 'warning')
         return redirect(url_for('index'))
 
-    enqueue(track_id, file_path, DB_PATH)
-    flash(f'Analyse gestart voor "{name}".', 'success')
+    # delete_after=True: the uploaded file is removed once analysis finishes.
+    enqueue(track_id, file_path, DB_PATH, delete_after=True)
+    flash(f'Upload gestart voor "{name}". Het bestand wordt na analyse verwijderd.', 'success')
     return redirect(url_for('index'))
 
 
-@app.route('/analyse/batch', methods=['POST'])
-def analyse_batch():
-    """Start analysis for multiple files from a folder."""
-    folder_path = request.form.get('folder_path', '').strip()
-    selected = request.form.getlist('selected_files')
-
-    if not selected:
-        flash('Geen bestanden geselecteerd.', 'error')
-        return redirect(url_for('browse', folder=folder_path))
-
-    count = 0
-    for filename in selected:
-        file_path = os.path.join(folder_path, filename)
-        if not os.path.isfile(file_path):
-            continue
-        name = Path(file_path).stem
-        file_size = os.path.getsize(file_path)
-        meta = parse_filename_metadata(filename)
-        fn_key = None
-        if 'key' in meta:
-            fn_key = meta['key'] + ('m' if meta.get('mode') == 'minor' else '')
-
-        track_id = create_track(name, file_path, file_size,
-                                filename_key=fn_key,
-                                filename_bpm=meta.get('bpm'))
-        if track_id is not None:
-            enqueue(track_id, file_path, DB_PATH)
-            count += 1
-
-    flash(f'{count} track(s) in de wachtrij gezet voor analyse.', 'success')
+@app.errorhandler(413)
+def file_too_large(e):
+    """Friendly message when an upload exceeds MAX_CONTENT_LENGTH."""
+    flash(f'Bestand te groot (max {MAX_UPLOAD_SIZE // (1024 * 1024)} MB).', 'error')
     return redirect(url_for('index'))
 
 
@@ -255,47 +274,6 @@ def analyse_status(track_id):
         'step': status_info['step'],
         'active': status_info['active'],
     })
-
-
-@app.route('/browse')
-def browse():
-    """Browse folder for audio files."""
-    folder = request.args.get('folder', DEFAULT_AUDIO_DIR)
-
-    audio_files = []
-    folder_exists = os.path.isdir(folder)
-
-    if folder_exists:
-        # Get existing track paths for this folder
-        existing = {t['file_path'] for t in list_tracks()}
-
-        for f in sorted(os.listdir(folder)):
-            # Skip hidden files (macOS resource forks like ._*)
-            if f.startswith('.'):
-                continue
-            ext = Path(f).suffix.lower()
-            if ext not in AUDIO_EXTENSIONS:
-                continue
-            full_path = os.path.join(folder, f)
-            # Skip empty files (0 bytes)
-            try:
-                fsize = os.path.getsize(full_path)
-                if fsize == 0:
-                    continue
-            except OSError:
-                continue
-            meta = parse_filename_metadata(f)
-            audio_files.append({
-                'filename': f,
-                'path': full_path,
-                'size': fsize,
-                'meta_key': meta.get('key', '') + ('m' if meta.get('mode') == 'minor' else ''),
-                'meta_bpm': meta.get('bpm'),
-                'exists_in_db': full_path in existing,
-            })
-
-    return render_template('browse_folder.html', folder=folder, audio_files=audio_files,
-                          folder_exists=folder_exists)
 
 
 @app.route('/tracks/<int:track_id>/delete', methods=['POST'])
@@ -373,5 +351,6 @@ def fmt_size_filter(size):
 if __name__ == '__main__':
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     os.makedirs(YOUTUBE_DOWNLOAD_DIR, exist_ok=True)
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
     port = int(os.environ.get('PORT', 5050))
     app.run(debug=True, host='0.0.0.0', port=port, threaded=True)
