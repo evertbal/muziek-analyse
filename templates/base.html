@@ -13,7 +13,6 @@
         <a href="{{ url_for('index') }}" class="nav-brand">Muziek-Analyse</a>
         <div class="nav-links">
             <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Tracks</a>
-            <a href="{{ url_for('browse') }}" class="{% if request.endpoint == 'browse' %}active{% endif %}">Nieuwe Analyse</a>
         </div>
     </div>
 </nav>

@@ -9,6 +9,7 @@ __pycache__/
 
 # Audio files
 tracks/
+uploads/
 *.mp3
 *.wav
 *.flac
