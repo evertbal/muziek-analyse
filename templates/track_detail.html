@@ -229,13 +229,14 @@
         <button type="submit" class="btn btn-ghost">Heranalyseer</button>
     </form>
     <form method="POST" action="{{ url_for('override_key', track_id=track.id) }}" class="override-form">
-        <span style="color:#888; font-size:0.85em;">Toonsoort:</span>
-        <select name="key">
+        <label for="override-key" style="color:#888; font-size:0.85em;">Toonsoort:</label>
+        <select id="override-key" name="key">
             {% for k in ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'] %}
             <option value="{{ k }}" {{ 'selected' if k == tpl_data.key }}>{{ k }}</option>
             {% endfor %}
         </select>
-        <select name="mode">
+        <label for="override-mode" class="visually-hidden">Modus</label>
+        <select id="override-mode" name="mode">
             <option value="major" {{ 'selected' if tpl_data.mode == 'major' }}>majeur</option>
             <option value="minor" {{ 'selected' if tpl_data.mode == 'minor' }}>mineur</option>
         </select>

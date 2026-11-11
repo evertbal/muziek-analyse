@@ -17,7 +17,7 @@
     </div>
 </nav>
 
-<div class="container">
+<main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
@@ -27,7 +27,7 @@
     {% endwith %}
 
     {% block content %}{% endblock %}
-</div>
+</main>
 
 <footer>
     <p>Muzikale Improvisatiegids — Bb Trompet / Eb Alt Sax</p>

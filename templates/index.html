@@ -18,7 +18,8 @@
 <!-- YouTube import -->
 <div class="youtube-import">
     <form method="POST" action="{{ url_for('youtube_import') }}" class="youtube-form">
-        <input type="url" name="youtube_url" placeholder="Plak een YouTube URL..." required class="search-input">
+        <label for="youtube-url" class="visually-hidden">YouTube URL</label>
+        <input id="youtube-url" type="url" name="youtube_url" placeholder="Plak een YouTube URL..." required class="search-input">
         <button type="submit" class="btn btn-primary">Importeer van YouTube</button>
     </form>
 </div>
@@ -26,7 +27,8 @@
 <!-- Directe audio-link -->
 <div class="url-import">
     <form method="POST" action="{{ url_for('import_url') }}" class="url-form">
-        <input type="url" name="audio_url" placeholder="Plak een link naar een audiobestand (mp3, wav, flac...)" required class="search-input">
+        <label for="audio-url" class="visually-hidden">Link naar audiobestand</label>
+        <input id="audio-url" type="url" name="audio_url" placeholder="Plak een link naar een audiobestand (mp3, wav, flac...)" required class="search-input">
         <button type="submit" class="btn btn-primary">Importeer van link</button>
     </form>
     <p class="upload-hint">Het bestand wordt na de analyse automatisch verwijderd.</p>
@@ -35,7 +37,8 @@
 <!-- Bestand uploaden -->
 <div class="upload-import">
     <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="upload-form">
-        <input type="file" name="audio_file" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aiff,.aif" required class="search-input">
+        <label for="audio-file" class="visually-hidden">Audiobestand</label>
+        <input id="audio-file" type="file" name="audio_file" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aiff,.aif" required class="search-input">
         <button type="submit" class="btn btn-primary">Upload &amp; analyseer</button>
     </form>
     <p class="upload-hint">Het bestand wordt na de analyse automatisch verwijderd.</p>
@@ -44,10 +47,14 @@
 <!-- Search / Filter -->
 <div class="search-bar">
     <form method="GET" action="{{ url_for('index') }}" class="search-form">
-        <input type="text" name="q" value="{{ q }}" placeholder="Zoek op naam..." class="search-input">
-        <input type="text" name="key" value="{{ key_filter }}" placeholder="Key (bijv. Cm)" class="filter-input">
-        <input type="number" name="bpm_min" value="{{ bpm_min }}" placeholder="BPM min" class="filter-input filter-small">
-        <input type="number" name="bpm_max" value="{{ bpm_max }}" placeholder="BPM max" class="filter-input filter-small">
+        <label for="search-q" class="visually-hidden">Zoek op naam</label>
+        <input id="search-q" type="text" name="q" value="{{ q }}" placeholder="Zoek op naam..." class="search-input">
+        <label for="filter-key" class="visually-hidden">Key</label>
+        <input id="filter-key" type="text" name="key" value="{{ key_filter }}" placeholder="Key (bijv. Cm)" class="filter-input">
+        <label for="filter-bpm-min" class="visually-hidden">BPM minimum</label>
+        <input id="filter-bpm-min" type="number" name="bpm_min" value="{{ bpm_min }}" placeholder="BPM min" class="filter-input filter-small">
+        <label for="filter-bpm-max" class="visually-hidden">BPM maximum</label>
+        <input id="filter-bpm-max" type="number" name="bpm_max" value="{{ bpm_max }}" placeholder="BPM max" class="filter-input filter-small">
         <button type="submit" class="btn btn-primary">Zoeken</button>
         {% if q or key_filter or bpm_min or bpm_max %}
         <a href="{{ url_for('index') }}" class="btn btn-ghost">Reset</a>
