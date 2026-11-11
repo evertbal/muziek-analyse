@@ -39,7 +39,7 @@ cd "$DIR"
 # Activate venv and start Flask
 echo "Flask server starten op poort 5050..."
 source .venv/bin/activate
-python app.py &>/tmp/flask-server.log &
+FLASK_DEBUG=1 python app.py &>/tmp/flask-server.log &
 echo $! > "$PID_FILE"
 sleep 2
 

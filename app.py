@@ -353,4 +353,7 @@ if __name__ == '__main__':
     os.makedirs(YOUTUBE_DOWNLOAD_DIR, exist_ok=True)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     port = int(os.environ.get('PORT', 5050))
-    app.run(debug=True, host='0.0.0.0', port=port, threaded=True)
+    # Debug alleen lokaal aanzetten met FLASK_DEBUG=1. Nooit op een publiek adres:
+    # de Werkzeug-debugger kan code uitvoeren en de herlader start een tweede proces.
+    debug = os.environ.get('FLASK_DEBUG') == '1'
+    app.run(debug=debug, host='0.0.0.0', port=port, threaded=True)
