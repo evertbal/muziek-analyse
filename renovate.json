@@ -1,0 +1,86 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommitsDisabled"
+  ],
+  "timezone": "Europe/Amsterdam",
+  "schedule": [
+    "before 8am on monday"
+  ],
+  "labels": [
+    "dependencies",
+    "renovate"
+  ],
+  "automerge": false,
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Weekly: all non-major updates (npm, Go, Python) in one PR",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "groupName": "non-major",
+      "automerge": false
+    },
+    {
+      "description": "Next.js, React and their types move together",
+      "matchPackageNames": [
+        "next",
+        "eslint-config-next",
+        "@next/**",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ],
+      "groupName": "next and react",
+      "automerge": false
+    },
+    {
+      "description": "GitHub Actions and Docker base images, one PR each",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github actions",
+      "automerge": false
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "groupName": "docker base images",
+      "automerge": false
+    },
+    {
+      "description": "Major bumps wait on the dependency dashboard for a manual go",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Own images are pinned through Flux, not here",
+      "matchPackageNames": [
+        "ghcr.io/jongep86/**"
+      ],
+      "enabled": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": [
+      "security"
+    ],
+    "schedule": [
+      "at any time"
+    ]
+  },
+  "postUpdateOptions": [
+    "gomodTidy"
+  ]
+}
